@@ -1,11 +1,12 @@
 {
-   "name": "nobull-filter",
+   "name": "nobull-filterapi",
    "version": "0.0.1",
    "description": "NoBull filter",
    "author": "Olatomide",
    "scripts": {
       "dev": "set debug=* && ts-node-dev -r dotenv/config -r tsconfig-paths/register --respawn  ./src/index.ts",
       "build": "gulp",
+      
       "dev:gulp": "nodemon --watch ./src -e 'ts' --exec \"gulp dev:build && node -r dotenv/config dist/index.js\"",
       "dev:esbuild": "nodemon --watch ./src -e 'ts' --exec \"etsc &&  node -r dotenv/config dist/index.js\"",
       "nodemon": "nodemon",
