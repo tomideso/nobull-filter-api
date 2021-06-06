@@ -24,7 +24,9 @@ export default () => {
     "/:id",
     async (req: Request, res: Response, next: NextFunction) => {
       try {
-        const configuration = await FilterService.generateClientConfig();
+        const configuration = await FilterService.generateClientConfig(
+          req.params.id
+        );
         res.send(configuration);
       } catch (error) {
         console.log(error);

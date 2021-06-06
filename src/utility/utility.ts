@@ -11,7 +11,7 @@ export const getRandomNumber = (length: number) =>
   );
 
 export const parseNumber = (val = "") => {
-  const num = val ? val.replace(/(\-)?[^0-9.]/g, "") : 0;
+  const num = val ? String(val).replace(/(\-)?[^0-9.]/g, "") : 0;
   return num ? +num : 0;
 };
 

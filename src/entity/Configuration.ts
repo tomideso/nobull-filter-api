@@ -20,11 +20,14 @@ const ConfigurationSchema = new Schema({
         {
           name: String,
           filterOption: String,
+          trigger: String,
+
           elements: [
             {
               trigger: String,
               filterBy: String,
               filterByAlias: String,
+              collectionItem: String,
               logicRules: [
                 {
                   operator: String,

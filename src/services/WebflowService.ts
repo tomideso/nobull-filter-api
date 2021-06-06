@@ -48,7 +48,7 @@ export class WebflowServiceImpl implements WebflowService {
     });
 
     if (total <= 100) {
-      this.redisClient.setex(identifier, 5 * 60, JSON.stringify(items));
+      this.redisClient.setex(identifier, 6 * 60, JSON.stringify(items));
       return items;
     }
 

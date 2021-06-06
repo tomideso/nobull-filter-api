@@ -59,24 +59,27 @@ export class FilterServiceImpl implements FilterService {
         ({ name }) => convertToKebabCaseNaming(name) == filterGroupID
       );
 
-      const elements = group?.elements?.find(({ filterBy }) => {
-        return new RegExp(filterBy, "gi").test(filterElementID);
+      const elements = group?.elements?.find(({ filterBy, trigger }) => {
+        return (
+          new RegExp(filterBy, "gi").test(filterElementID) &&
+          trigger == "Static Div, Button, Link"
+        );
       });
 
       // console.log({ elements, filterElementID });
+      if (elements) {
+        const collectionItems = await this.WebflowServiceImpl.getCollectionItems(
+          undefined,
+          filter.collectionID
+        );
 
-      const collectionItems = await this.WebflowServiceImpl.getCollectionItems(
-        undefined,
-        filter.collectionID
-      );
+        const result = this.executeRules(elements?.logicRules, collectionItems);
 
-      const result = this.executeRules(elements?.logicRules, collectionItems);
+        this.redisClient.setex(identifier, 4 * 60, JSON.stringify(result));
 
-      this.redisClient.setex(identifier, 4 * 60, JSON.stringify(result));
-
-      console.log({ result, rules: elements.logicRules });
-
-      return result;
+        return result;
+      } else {
+      }
     } catch (error) {
       throw new AppError(error, 400);
     }
@@ -119,7 +122,7 @@ export class FilterServiceImpl implements FilterService {
 
   protected executeRules(rules: Array<logicRule> = [], collectionItems = []) {
     return collectionItems.reduce((acc, item) => {
-      const result = rules.reduce((accum, curr) => {
+      const result = rules.reduce((accum, curr, j) => {
         let { operator, value, joiner: logic, field, fieldType } = curr;
 
         let filterText = item[field];
@@ -130,18 +133,6 @@ export class FilterServiceImpl implements FilterService {
 
         let result = accum;
 
-        console.log(/Chevrolet/.test(value) ? field : "");
-        // const arithmeticCheck = [">=", ">", "<", "<="].includes(operator);
-
-        // if (arithmeticCheck && fieldType) {
-        //   if (isValidDate(filterText)) {
-        //   } else {
-        //     filterText = parseNumber(filterText);
-        //   }
-        // }
-
-        // isValidDate(filterText);
-
         switch (operator) {
           case "contain":
             result = re.test(filterText);
@@ -151,13 +142,19 @@ export class FilterServiceImpl implements FilterService {
             result = !re.test(filterText);
             break;
 
+          case "==":
+            result = filterText == value;
+
+            break;
+
           default:
-            result = eval(`${filterText} ${operator} ${value}`);
+            result = eval(`${parseNumber(filterText)} ${operator} ${value}`);
             break;
         }
 
         return eval(`${accum} ${logic} ${result}`);
       }, true);
+
       return result ? [...acc, item.slug] : acc;
     }, []);
   }
