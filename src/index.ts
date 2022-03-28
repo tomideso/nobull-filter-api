@@ -2,7 +2,6 @@ import "reflect-metadata";
 import * as express from "express";
 import * as bodyParser from "body-parser";
 import * as helmet from "helmet";
-import * as cors from "cors";
 import { registerRoutes } from "./routes/routes";
 import * as passport from "passport";
 import { Passport } from "./utility/passport";
@@ -15,13 +14,14 @@ import * as mongoose from "mongoose";
 const connectRedis = require("connect-redis");
 const path = require("path");
 const expressip = require("express-ip");
+const cookieParser = require("cookie-parser");
 
 // const mongoose = require("mongoose");
 (<any>mongoose).Promise = global.Promise;
 const session = require("express-session");
 
 const RedisStore = connectRedis(session);
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 
 const expressHandleBars = require("express-handlebars").create({
   defaultLayout: "layout",
@@ -47,8 +47,8 @@ mongoose.connect(DB_CONFIG.mongoUrl, { useNewUrlParser: true }, (error) => {
   app.set("views", path.join(__dirname, "views"));
 
   // Call midlewares
-  app.use(cors());
   app.use(helmet());
+  app.use(cookieParser());
 
   app.use(
     session({

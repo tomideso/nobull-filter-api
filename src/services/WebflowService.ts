@@ -3,6 +3,10 @@ import TYPES from "../config/types";
 import { Redis } from "ioredis";
 import { AppError } from "@/ErrorHandler/AppError";
 import { CustomResponse } from "@/ErrorHandler/CustomResponse";
+import {
+  CollectionItemsService,
+  CollectionItemsServiceImpl,
+} from "./CollectionItemsService";
 const Webflow = require("webflow-api");
 
 @injectable()
@@ -11,8 +15,15 @@ export class WebflowServiceImpl implements WebflowService {
 
   private accessToken: string;
 
-  constructor(@inject(TYPES.Redis) redisClient: Redis) {
+  private collectionItemsService;
+
+  constructor(
+    @inject(TYPES.Redis) redisClient: Redis,
+    @inject(TYPES.CollectionItemsService)
+    collectionItemsService: CollectionItemsService
+  ) {
     this.redisClient = redisClient;
+    this.collectionItemsService = collectionItemsService;
     this.accessToken =
       "92a04629d06d49f71a07bddb709dbade2bfe8d5a7010047f23116abe41f88b7a";
   }
@@ -43,6 +54,14 @@ export class WebflowServiceImpl implements WebflowService {
 
     if (cachedItems) return JSON.parse(cachedItems);
 
+    this.refreshCollectionItems(token, collectionId);
+
+    return await this.collectionItemsService.getByCollectionID(collectionId);
+  }
+
+  private async refreshCollectionItems(token, collectionId) {
+    const identifier = "items-" + collectionId;
+
     const { items, total }: CollectionItems = await webflowClient(token).items({
       collectionId,
     });
@@ -72,6 +91,9 @@ export class WebflowServiceImpl implements WebflowService {
       }
       return acc;
     }, items);
+
+    //update collectionItems store
+    this.collectionItemsService.createOrUpdate(collectionId, collectionItems);
 
     this.redisClient.setex(identifier, 4 * 60, JSON.stringify(collectionItems));
 

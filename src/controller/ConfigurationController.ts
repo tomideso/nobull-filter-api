@@ -15,10 +15,12 @@ export default () => {
     "/create",
     async (req: Request, res: Response, next: NextFunction) => {
       const { config } = req.body;
+      console.log(JSON.stringify(config));
       try {
         const configuration = await ConfigurationService.create(config);
         res.send(configuration);
       } catch (error) {
+        console.error(error);
         const err = new AppError("Error getting collections list", 400);
         return next(err);
       }
@@ -38,6 +40,22 @@ export default () => {
       } catch (error) {
         const err = new AppError("Error saving configuration list", 400);
         return next(err);
+      }
+    }
+  );
+
+  router.put(
+    "/classname/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const config = await ConfigurationService.updateActiveClassName(
+          req.params.id,
+          req.body
+        );
+        // console.log(config);
+        res.send(config);
+      } catch (error) {
+        return next(error);
       }
     }
   );

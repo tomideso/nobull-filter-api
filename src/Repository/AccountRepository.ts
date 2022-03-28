@@ -1,5 +1,4 @@
 import Account from "@/entity/Account";
-import AccountDto from "@/Dto/AccountDto";
 
 export default class AccountRepository {
   private transactionMananger;

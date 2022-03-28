@@ -15,6 +15,8 @@ export default () => {
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const sites = await WebflowService.listSites();
+        console.log(JSON.stringify(sites));
+
         res.send(sites);
       } catch (error) {
         console.log(error);

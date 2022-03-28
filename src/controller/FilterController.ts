@@ -11,7 +11,7 @@ export default () => {
 
   router.get("/", async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const configuration = await FilterService.generateClientConfig();
+      const configuration = await FilterService.generateClientConfig("");
       res.send(configuration);
     } catch (error) {
       console.log(error);
@@ -27,10 +27,41 @@ export default () => {
         const configuration = await FilterService.generateClientConfig(
           req.params.id
         );
+        res.setHeader("Content-Type", "text/javascript");
+
         res.send(configuration);
       } catch (error) {
         console.log(error);
         const err = new AppError("Error getting collections list", 400);
+        return next(err);
+      }
+    }
+  );
+
+  router.post(
+    "/result/:id",
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const configID = req.params.id;
+        const {
+          filterCollection,
+          filterGroupID,
+          filterElementID,
+          isCollection,
+        } = req.body;
+
+        const result = await FilterService.initFilter({
+          configID,
+          filterCollection,
+          filterElementID,
+          filterGroupID,
+          isCollection,
+        });
+
+        return res.send(result);
+      } catch (error) {
+        console.log(error);
+        const err = new AppError("Error performing filter", 400);
         return next(err);
       }
     }
@@ -46,8 +77,6 @@ export default () => {
 
         const entries = Object.entries(query);
 
-        // console.log(entries, filterCollection);
-
         let resultSet: Array<string> = [];
 
         for (const [filterGroupID, filterElements] of entries) {
@@ -60,6 +89,7 @@ export default () => {
                 filterCollection,
                 filterElementID,
                 filterGroupID,
+                isCollection: false,
               });
             }
           );

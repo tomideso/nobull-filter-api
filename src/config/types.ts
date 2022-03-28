@@ -4,9 +4,9 @@ const TYPES = {
   Passport: Symbol("Passport"),
   OTPService: Symbol("OTP"),
   UserService: Symbol("User"),
-  HospitalService: Symbol("Hospital"),
   AccountRepo: Symbol("AccountRepo"),
   ConfigurationService: Symbol("Configuration"),
+  CollectionItemsService: Symbol("CollectionItemsService"),
   WebflowService: Symbol("Webflow"),
   FilterService: Symbol("Filter"),
 };

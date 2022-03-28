@@ -4,7 +4,7 @@ import { AppError } from "@/ErrorHandler/AppError";
 import { ConfigurationService } from "./ConfigurationService";
 import { WebflowService } from "./WebflowService";
 import { Redis } from "ioredis";
-import { getRandomNumber, isValidDate, parseNumber } from "@/utility/utility";
+import { parseNumber } from "@/utility/utility";
 
 const loadmore = {
   button: ".w-pagination-next",
@@ -40,10 +40,10 @@ export class FilterServiceImpl implements FilterService {
     filterCollection,
     filterGroupID,
     filterElementID,
+    isCollection,
   }) {
     const identifier = `${configID}-filter-${filterGroupID}-${filterElementID}`;
 
-    // console.log(identifier);
     try {
       const cachedResult = await this.redisClient.get(identifier);
 
@@ -54,6 +54,14 @@ export class FilterServiceImpl implements FilterService {
       const filter = filters.find(
         ({ name }) => convertToKebabCaseNaming(name) == filterCollection
       );
+
+      if (isCollection) {
+        return this.processCollectionFilter({
+          filter,
+          filterGroupID,
+          filterElementID,
+        });
+      }
 
       const group = filter?.groups?.find(
         ({ name }) => convertToKebabCaseNaming(name) == filterGroupID
@@ -66,16 +74,16 @@ export class FilterServiceImpl implements FilterService {
         );
       });
 
-      // console.log({ elements, filterElementID });
       if (elements) {
-        const collectionItems = await this.WebflowServiceImpl.getCollectionItems(
-          undefined,
-          filter.collectionID
-        );
+        const collectionItems =
+          await this.WebflowServiceImpl.getCollectionItems(
+            undefined,
+            filter.collectionID
+          );
 
         const result = this.executeRules(elements?.logicRules, collectionItems);
 
-        this.redisClient.setex(identifier, 4 * 60, JSON.stringify(result));
+        this.redisClient.setex(identifier, 10 * 60, JSON.stringify(result));
 
         return result;
       } else {
@@ -85,21 +93,38 @@ export class FilterServiceImpl implements FilterService {
     }
   }
 
-  public async generateClientConfig(configID = "607204a8f1bab03a61a1d897") {
+  public async generateClientConfig(configID) {
     try {
       const { filters } = await this.ConfigurationServiceImpl.getByID(configID);
 
-      const fsConfig = filters?.map(({ name, groups }) => {
+      const fsConfig = filters?.map(({ name, groups, collectionID }) => {
+        //prefetch collection
+        this.WebflowServiceImpl.getCollectionItems(undefined, collectionID);
+
         const filterName = convertToKebabCaseNaming(name);
 
-        const filterArray = groups.map(({ name, filterOption: filterType }) => {
-          const groupName = convertToKebabCaseNaming(name);
+        const filterArray = groups.map(
+          ({ name, trigger, filterOption: filterType, elements }) => {
+            const isCollection = /collection/gi.test(trigger);
+            const groupName = isCollection
+              ? elements[0]?.filterBy
+              : convertToKebabCaseNaming(name);
 
-          return {
-            filterWrapper: `[filter-group='${groupName}']`,
-            filterType,
-          };
-        });
+            if (isCollection) {
+              //prefetch collection
+              this.WebflowServiceImpl.getCollectionItems(
+                undefined,
+                elements[0]?.collectionItemRefID
+              );
+            }
+
+            return {
+              filterWrapper: `[filter-group='${groupName}']`,
+              isCollection,
+              filterType,
+            };
+          }
+        );
 
         // run filter on our instance
         const filter = {
@@ -113,11 +138,48 @@ export class FilterServiceImpl implements FilterService {
           },
         };
 
-        return getLibraryInstanceTemplate({ loadmore, filter, filterName });
+        return getLibraryInstanceTemplate({
+          loadmore,
+          filter,
+          filterName,
+          configID,
+        });
       });
 
       return fsConfig.join("\n");
     } catch (error) {}
+  }
+
+  public async processCollectionFilter({
+    filterElementID,
+    filter,
+    filterGroupID,
+  }) {
+    const group1 = filter?.groups?.find(({ elements }) => {
+      return JSON.stringify(elements).includes(filterGroupID);
+    });
+
+    const triggerSlug = group1?.elements[0]?.collectionItemRefSlug;
+    const triggerItemRefID = group1?.elements[0]?.collectionItemRefID;
+
+    const collectionTriggerItems =
+      await this.WebflowServiceImpl.getCollectionItems(
+        undefined,
+        triggerItemRefID
+      );
+
+    const collectionItems = await this.WebflowServiceImpl.getCollectionItems(
+      undefined,
+      filter.collectionID
+    );
+
+    const item = collectionTriggerItems.find(({ slug }) => {
+      return slug == filterElementID;
+    });
+
+    return collectionItems
+      .filter((val) => val[triggerSlug] == item._id)
+      .map(({ slug }) => slug);
   }
 
   protected executeRules(rules: Array<logicRule> = [], collectionItems = []) {
@@ -162,19 +224,23 @@ export class FilterServiceImpl implements FilterService {
 
 export interface FilterService {
   initFilter(queryObject: queryObject): Promise<any>;
-
+  processCollectionFilter(data): Promise<any>;
   generateClientConfig(configID: string): Promise<any>;
 }
 
-const getLibraryInstanceTemplate = ({ filter, loadmore, filterName }) => {
+const getLibraryInstanceTemplate = ({
+  filter,
+  loadmore,
+  filterName,
+  configID: configId,
+}) => {
   return `
         (function() {
-            
             const nobullShit = new NobullLibrary('[filter-collection="${filterName}"]');
             
             nobullShit.loadmore(${JSON.stringify(loadmore)});
              
-            nobullShit.filter(${JSON.stringify(filter)});
+            nobullShit.filter(${JSON.stringify({ ...filter, configId })});
 
         })();
         `;
@@ -198,4 +264,5 @@ interface queryObject {
   filterGroupID: string;
   filterCollection: string;
   filterElementID: string;
+  isCollection?: boolean;
 }

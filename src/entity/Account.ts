@@ -1,11 +1,16 @@
-import * as mongoose from "mongoose";
+import { AccountDto } from "@/Dto/AccountDto";
+import { Schema, model, Document } from "mongoose";
 
-let Schema = mongoose.Schema;
+let AccountSchema = new Schema<AccountDto>(
+  {
+    created: { type: Date, default: Date.now },
+    accessToken: String,
+    email: String,
+    userId: String,
+    firstName: String,
+    lastName: String,
+  },
+  { timestamps: true }
+);
 
-let AccountSchema = new Schema({
-  created: { type: Date, default: Date.now },
-  accessToken: String,
-  name: String,
-});
-
-export default mongoose.model("Account", AccountSchema);
+export default model<AccountDto & Document>("Account", AccountSchema);
